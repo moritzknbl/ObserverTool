@@ -15,7 +15,7 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 * **Display:** 0.96" OLED I2C (128x64, SSD1306)
 * **Inputs:** 2x Push Buttons (Start & Mode) (12*11mm opening size) [HERE](https://de.aliexpress.com/item/1005009402689922.html)
 * **Vibration:** QYF-740 Vibration Motor Module (Built-in driver, operates at 3.0-5.3VDC) [HERE](https://aliexpress.com/item/1005009127931477.html)
-* **Battery:** Small 3.7V LiPo Battery [HERE](https://de.aliexpress.com/item/1005006584143607.html)
+* **Battery:** Small 502030 3.7V LiPo Battery [HERE](https://de.aliexpress.com/item/1005006584143607.html)
 * **Power Switch**: Simple ON/OFF Power Switch (19*13mm opening size) [HERE](https://aliexpress.com/item/1005008276122557.html)
 * **Charge Controller:** Mini Type-C LiPo Charge/Discharge Module *(Specs: 18x12mm, 5V to 4.2V, set to 0.1A charge current, integrated over-discharge protection)* [HERE](https://de.aliexpress.com/item/1005010413122149.html)
 

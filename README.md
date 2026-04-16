@@ -81,7 +81,7 @@ If you already have a version of the ObserverTool running and just want to updat
 
 1. Go to the [Releases](../../releases) page of this repository.
 2. Download the latest `ObserverTool_vX.X.bin` file from the "Assets" section.
-3. Power on your ObserverTool while holding both the **Mode + Action** buttons to enter OTA Service Mode.
+3. Power on your ObserverTool while holding both the **Mode + Start** buttons to enter OTA Service Mode.
 4. Connect to the Wi-Fi network `ObserverTool`.
 5. Open your browser and navigate to `http://192.168.4.1` (or wait for the captive portal).
 6. Upload the downloaded `.bin` file and hit "Flash Update". The device will restart automatically.
@@ -89,8 +89,8 @@ If you already have a version of the ObserverTool running and just want to updat
 ## 🚀 Usage & Controls
 * **Normal Operation:**
   * Press **Mode** to cycle through the timer programs.
-  * Press **Action** to start or stop the selected timer.
-  * *Coin Toss:* Select "Coin Toss" and press Action to generate a random result.
+  * Press **Start** to start or stop the selected timer.
+  * *Coin Toss:* Select "Coin Toss" and press Start to generate a random result.
 * **Wake Up:** Press any button to wake the device from sleep or dim mode.
 
 ### Secret Boot Modes

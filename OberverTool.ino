@@ -1,6 +1,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Fonts/FreeSans18pt7b.h>
+#include <Fonts/FreeSans24pt7b.h>
 #include "esp_sleep.h" 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -123,9 +125,6 @@ void setup() {
   }
   setDisplayBrightness(BRIGHTNESS_HIGH);
 
-  // ----------------------------------------------------
-  // --- SECRET BOOT MODES ---
-  // ----------------------------------------------------
   if (digitalRead(PIN_BTN_MODE) == LOW && digitalRead(PIN_BTN_ACTION) == LOW) {
     runServiceMode(); 
   } 
@@ -246,9 +245,16 @@ void loop() {
       isRunning = false;
       display.clearDisplay();
       drawHeader(p.name);
-      display.setTextSize(4); 
-      display.setCursor(15, 25);
+      
+      display.setFont(&FreeSans18pt7b);
+      display.setTextSize(1);
+      int16_t x1, y1;
+      uint16_t w, h;
+      display.getTextBounds("TIME", 0, 0, &x1, &y1, &w, &h);
+      int xPos = (SCREEN_WIDTH - w) / 2 - x1;
+      display.setCursor(xPos < 0 ? 0 : xPos, 50);
       display.println("TIME");
+      display.setFont();
       display.display();
 
       for(int i = 0; i < VIB_ALARM_COUNT; i++) {
@@ -281,12 +287,17 @@ void runCoinToss() {
     
     display.clearDisplay();
     drawHeader("Coin Toss");
-    display.setTextSize(3);
     
+    display.setFont(&FreeSans18pt7b);
+    display.setTextSize(1);
     String text = isHeads ? "HEADS" : "TAILS";
-    int xPos = (SCREEN_WIDTH - (text.length() * 18)) / 2;
-    display.setCursor(xPos < 0 ? 0 : xPos, 30);
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+    int xPos = (SCREEN_WIDTH - w) / 2 - x1;
+    display.setCursor(xPos < 0 ? 0 : xPos, 50);
     display.print(text);
+    display.setFont();
     display.display();
     
     digitalWrite(PIN_VIB_MOTOR, HIGH); delay(15); digitalWrite(PIN_VIB_MOTOR, LOW);
@@ -299,11 +310,17 @@ void runCoinToss() {
   
   display.clearDisplay();
   drawHeader("WINNER!");
-  display.setTextSize(3);
+  
+  display.setFont(&FreeSans18pt7b);
+  display.setTextSize(1);
   String text = isHeads ? "HEADS" : "TAILS";
-  int xPos = (SCREEN_WIDTH - (text.length() * 18)) / 2;
-  display.setCursor(xPos < 0 ? 0 : xPos, 30);
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  int xPos = (SCREEN_WIDTH - w) / 2 - x1;
+  display.setCursor(xPos < 0 ? 0 : xPos, 50);
   display.print(text);
+  display.setFont();
   display.display();
   
   digitalWrite(PIN_VIB_MOTOR, HIGH); delay(500); digitalWrite(PIN_VIB_MOTOR, LOW);
@@ -321,20 +338,15 @@ void runFlappyBall() {
 
   while(digitalRead(PIN_BTN_ACTION) == LOW || digitalRead(PIN_BTN_MODE) == LOW) { delay(10); }
 
-  // --------------------------------------
-  // WELCOME SCREEN 
-  // --------------------------------------
   display.clearDisplay();
   drawHeader("Flappy Dot");
   
-  // Highscore
   display.setTextSize(2);
   String hsStr = "RECORD: " + String(highscore);
   int hsX = (SCREEN_WIDTH - (hsStr.length() * 12)) / 2;
   display.setCursor(hsX < 0 ? 0 : hsX, 25);
   display.print(hsStr);
 
-  // PRESS START
   display.setTextSize(1);
   String psStr = "- PRESS START -";
   int psX = (SCREEN_WIDTH - (psStr.length() * 6)) / 2;
@@ -343,7 +355,6 @@ void runFlappyBall() {
   
   display.display();
 
-  // Wait for input
   while(true) {
     if(digitalRead(PIN_BTN_MODE) == LOW) { 
       prefs.end(); 
@@ -396,20 +407,15 @@ void runFlappyBall() {
           }
         }
       } else {
-        // --------------------------------------
-        // GAME OVER SCREEN
-        // --------------------------------------
         display.clearDisplay();
         drawHeader("GAME OVER");
         
-        // Current Score
         display.setTextSize(2);
         String scoreStr = "Score: " + String(score);
         int scX = (SCREEN_WIDTH - (scoreStr.length() * 12)) / 2;
         display.setCursor(scX < 0 ? 0 : scX, 25);
         display.print(scoreStr);
         
-        // PRESS RESTART
         display.setTextSize(1);
         String restStr = "- PRESS RESTART -";
         int restX = (SCREEN_WIDTH - (restStr.length() * 6)) / 2;
@@ -444,7 +450,6 @@ void runFlappyBall() {
 // --- OTA SERVICE MODE ---
 // ==========================================
 
-// Web interface stored in PROGMEM to save RAM
 const char web_page_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -566,22 +571,29 @@ void updateMenuDisplay() {
   Program p = programs[currentMenuIndex];
   
   drawHeader(p.name);
-  display.setTextSize(3);
+  
+  display.setFont(&FreeSans18pt7b);
+  display.setTextSize(1);
 
   String timeString = "";
   if (p.durationMs == 0) {
     timeString = "START"; 
   } else if (p.durationMs >= 60000) {
-    timeString = String(p.durationMs / 60000) + " Min";
+    timeString = String(p.durationMs / 60000) + " m";
   } else {
-    timeString = String(p.durationMs / 1000) + " Sec";
+    timeString = String(p.durationMs / 1000) + " s";
   }
 
-  int xPos = (SCREEN_WIDTH - (timeString.length() * 18)) / 2;
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(timeString, 0, 0, &x1, &y1, &w, &h);
+  int xPos = (SCREEN_WIDTH - w) / 2 - x1;
   if (xPos < 0) xPos = 0;
 
-  display.setCursor(xPos, 30);
+  display.setCursor(xPos, 50);
   display.print(timeString);
+  
+  display.setFont(); 
   display.display();
 }
 
@@ -590,20 +602,34 @@ void updateTimerDisplay(unsigned long remaining) {
   Program p = programs[currentMenuIndex];
   drawHeader(p.name);
 
+  display.setFont(&FreeSans24pt7b);
+  display.setTextSize(1);
+
+  String timerString = "";
+  String templateString = ""; 
+
   if (p.durationMs == 3000) {
     float secRemaining = remaining / 1000.0;
-    display.setTextSize(4);
-    display.setCursor(28, 25); 
-    display.print(secRemaining, 1);
+    timerString = String(secRemaining, 1);
+    templateString = "8.8";
   } else {
     int mins = remaining / 60000;
     int secs = (remaining % 60000) / 1000;
-    display.setTextSize(4);
-    display.setCursor(16, 25); 
-    display.print(mins);
-    display.print(":");
-    if (secs < 10) display.print("0"); 
-    display.print(secs);
+    timerString = String(mins) + ":";
+    if (secs < 10) timerString += "0";
+    timerString += String(secs);
+    templateString = (mins > 9) ? "88:88" : "8:88";
   }
+
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(templateString, 0, 0, &x1, &y1, &w, &h);
+  
+  int xPos = (SCREEN_WIDTH - w) / 2 - x1;
+
+  display.setCursor(xPos < 0 ? 0 : xPos, 56);
+  display.print(timerString);
+  
+  display.setFont(); 
   display.display();
 }

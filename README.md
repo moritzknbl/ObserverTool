@@ -13,8 +13,11 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 ## 🛠️ Hardware Requirements
 * **Microcontroller:** ESP32-C3 Super Mini
 * **Display:** 0.96" OLED I2C (128x64, SSD1306)
-* **Inputs:** 2x Push Buttons (Action & Mode)
-* **Output:** 1x Small Vibration Motor (connected via transistor/MOSFET recommended)
+* **Inputs:** 2x Push Buttons (Start & Mode) (12*11mm opening size) [HERE](https://de.aliexpress.com/item/1005009402689922.html)
+* **Vibration:** QYF-740 Vibration Motor Module (Built-in driver, operates at 3.0-5.3VDC) [HERE](https://aliexpress.com/item/1005009127931477.html)
+* **Battery:** Small 3.7V LiPo Battery [HERE](https://de.aliexpress.com/item/1005006584143607.html)
+* **Power Switch**: Simple ON/OFF Power Switch (19*13mm opening size) [HERE](https://aliexpress.com/item/1005008276122557.html)
+* **Charge Controller:** Mini Type-C LiPo Charge/Discharge Module *(Specs: 18x12mm, 5V to 4.2V, set to 0.1A charge current, integrated over-discharge protection)* [HERE](https://de.aliexpress.com/item/1005010413122149.html)
 
 ### Pin Configuration
 | Component         | ESP32 Pin |
@@ -26,6 +29,18 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 | Vibration Motor Module   | GPIO 10   |
 
 *(Note: Buttons are configured as `INPUT_PULLUP`, so connect them between the GPIO and GND).*
+
+## 🧊 3D Printed Enclosure
+To complete your ObserverTool, a custom-designed 3D printable case is available. You can find all the necessary `.stl` files directly in the [encloure](enclosure) folder. 
+
+**Assembly & Design:**
+* **Highly Maintenance-Friendly:** The entire enclosure is designed without the need for any glue. 
+* **Hardware:** Everything is assembled using **1.7 x 5 mm screws**.
+* **Smart Mounting:** The OLED display, ESP32, and battery are securely held in place using custom 3D-printed pressure plates. This makes future repairs or battery replacements incredibly easy.
+
+**Recommended Print Settings:**
+* **Material:** PLA, PETG
+* **Infill:** 15-20% is usually sufficient.
 
 ## 💻 Software Dependencies
 To compile this project in the Arduino IDE or PlatformIO, you need the following libraries:

@@ -34,6 +34,43 @@ To compile this project in the Arduino IDE or PlatformIO, you need the following
 
 The ESP32 core libraries (`WiFi`, `WebServer`, `Update`, `DNSServer`, `Preferences`) are included by default in the ESP32 board package.
 
+## 📥 Installation & Flashing Guide (Arduino IDE)
+
+Follow these steps to compile and flash the firmware to your ESP32 for the first time:
+
+### 1. Setup Arduino IDE & ESP32 Core
+1. Download and install the latest [Arduino IDE](https://www.arduino.cc/en/software).
+2. Open the IDE, go to **File > Preferences**, and paste the following URL into the *Additional Boards Manager URLs* field:
+   `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+3. Go to **Tools > Board > Boards Manager**, search for **esp32**, and install the package by *Espressif Systems*.
+
+### 2. Install Required Libraries
+Go to **Sketch > Include Library > Manage Libraries** and search for the following libraries to install them:
+* `Adafruit GFX Library` (by Adafruit)
+* `Adafruit SSD1306` (by Adafruit)
+
+### 3. Configure Board Settings (⚠️ CRITICAL)
+Connect your ESP32 to your computer via USB. Go to the **Tools** menu and configure the following settings:
+* **Board:** Select your specific ESP32 board (e.g., `ESP32 Dev Module`, `Adafruit ESP32 Feather`, etc.).
+* **Partition Scheme:** Select **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)**. 
+  *(Note: This step is absolutely mandatory! If you skip this, the OTA-Update feature will not have enough memory to function and the board will crash).*
+* **Port:** Select the COM port your ESP32 is connected to (e.g., `COM3` on Windows or `/dev/cu.usbserial-...` on Mac).
+
+### 4. Flash the Firmware
+1. Open the `ObserverTool.ino` file in the Arduino IDE.
+2. Click the **Upload** button (the right-pointing arrow at the top left).
+3. *Troubleshooting tip: If the IDE gets stuck at "Connecting...", press and hold the physical `BOOT` button on your ESP32 board until the flashing process starts.*
+
+## 📦 Quick Update (Precompiled Binary)
+If you already have a version of the ObserverTool running and just want to update to the latest firmware without compiling the code yourself, you can use the precompiled `.bin` file.
+
+1. Go to the [Releases](../../releases) page of this repository.
+2. Download the latest `ObserverTool_vX.X.bin` file from the "Assets" section.
+3. Power on your ObserverTool while holding both the **Mode + Action** buttons to enter OTA Service Mode.
+4. Connect to the Wi-Fi network `ObserverTool`.
+5. Open your browser and navigate to `http://192.168.4.1` (or wait for the captive portal).
+6. Upload the downloaded `.bin` file and hit "Flash Update". The device will restart automatically.
+
 ## 🚀 Usage & Controls
 * **Normal Operation:**
   * Press **Mode** to cycle through the timer programs.

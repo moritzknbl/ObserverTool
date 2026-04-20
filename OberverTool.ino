@@ -68,7 +68,7 @@ struct Program {
 
 const int NUM_PROGRAMS = 7;
 Program programs[NUM_PROGRAMS] = {
-  {"Serve", 3000, 0},             // Index 0: Standard-Startpunkt
+  {"Serve", 3000, 0},             
   {"Timeout", 60000, 20000},      
   {"Break", 180000, 60000},       
   {"1.Medical", 300000, 60000},   
@@ -162,7 +162,6 @@ void setup() {
     toggleEspNowMode(); // Interaktives Einstellungs-Menü
   }
 
-  // Setup ESP-NOW nur starten/scannen, wenn die Funktion aktiv ist!
   if (espNowEnabled) {
     setupESPNow();
   }
@@ -340,7 +339,6 @@ void toggleEspNowMode() {
   Preferences prefs;
   prefs.begin("settings", false); 
   
-  // Warten, bis der Action-Button vom Einschalten losgelassen wird
   while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } 
 
   bool inMenu = true;
@@ -369,7 +367,6 @@ void toggleEspNowMode() {
     
     display.display();
 
-    // Toggle mit Action Button
     if (digitalRead(PIN_BTN_ACTION) == LOW) {
       espNowEnabled = !espNowEnabled; // Ändert den Status
       prefs.putBool("espnow", espNowEnabled); // Speichert sofort
@@ -378,7 +375,6 @@ void toggleEspNowMode() {
       while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } // Warten bis losgelassen
     }
 
-    // Verlassen mit Mode Button
     if (digitalRead(PIN_BTN_MODE) == LOW) {
       digitalWrite(PIN_VIB_MOTOR, HIGH); delay(200); digitalWrite(PIN_VIB_MOTOR, LOW); // Langes Feedback
       while(digitalRead(PIN_BTN_MODE) == LOW) { delay(10); } // Warten bis losgelassen
@@ -430,9 +426,10 @@ void sendTimerCommand(bool start, unsigned long duration) {
     msg.start = start;
     msg.duration = duration;
     
-    for(int i = 0; i < 3; i++) {
+  
+    for(int i = 0; i < 10; i++) {
       esp_now_send(broadcastAddress, (uint8_t *) &msg, sizeof(msg));
-      delay(15); 
+      delay(40); 
     }
     
     esp_now_deinit();

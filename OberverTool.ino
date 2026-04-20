@@ -5,6 +5,8 @@
 #include <Fonts/FreeSans24pt7b.h>
 #include "esp_sleep.h" 
 #include <WiFi.h>
+#include <esp_now.h>   
+#include <esp_wifi.h>  
 #include <WebServer.h>
 #include <Update.h>
 #include <DNSServer.h>
@@ -54,7 +56,7 @@ const unsigned long BOOT_DELAY_AFTER_VIB = 1500;
 
 // OTA Service Mode settings
 const char* AP_SSID = "ObserverTool";
-const char* FIRMWARE_VERSION = "v1.0"; 
+const char* FIRMWARE_VERSION = "v2.0"; 
 const byte DNS_PORT = 53;
 
 // Program definitions { "Name", Duration (ms), Warning (ms, 0 = off) }
@@ -66,7 +68,7 @@ struct Program {
 
 const int NUM_PROGRAMS = 7;
 Program programs[NUM_PROGRAMS] = {
-  {"Serve", 3000, 0},             
+  {"Serve", 3000, 0},             // Index 0: Standard-Startpunkt
   {"Timeout", 60000, 20000},      
   {"Break", 180000, 60000},       
   {"1.Medical", 300000, 60000},   
@@ -96,11 +98,24 @@ unsigned long vibrateUntil = 0;
 bool isDimmed = false;
 
 // ==========================================
+// --- ESP-NOW VARIABLES ---
+// ==========================================
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+int scoreboardChannel = 1; 
+bool espNowEnabled = true; 
+
+typedef struct struct_message {
+  bool start;
+  unsigned long duration;
+} struct_message;
+
+// ==========================================
 // --- FUNCTION DECLARATIONS ---
 // ==========================================
 void runServiceMode();
 void runFlappyBall();
 void runCoinToss();
+void toggleEspNowMode(); 
 void setDisplayBrightness(uint8_t contrast);
 void drawHeader(String title);
 void updateMenuDisplay();
@@ -108,6 +123,8 @@ void updateTimerDisplay(unsigned long remaining);
 void triggerVibration(unsigned long duration);
 void handleVibration(unsigned long currentMillis);
 String getWebPage();
+void setupESPNow();
+void sendTimerCommand(bool start, unsigned long duration);
 
 // ==========================================
 // --- SETUP ---
@@ -125,14 +142,30 @@ void setup() {
   }
   setDisplayBrightness(BRIGHTNESS_HIGH);
 
+  display.clearDisplay();
+  display.display();
+
+  // Gespeicherten Sync-Status laden
+  Preferences prefsMain;
+  prefsMain.begin("settings", true); 
+  espNowEnabled = prefsMain.getBool("espnow", true); 
+  prefsMain.end();
+
+  // --- BOOT MENU LOGIC ---
   if (digitalRead(PIN_BTN_MODE) == LOW && digitalRead(PIN_BTN_ACTION) == LOW) {
     runServiceMode(); 
   } 
   else if (digitalRead(PIN_BTN_MODE) == LOW) {
     runFlappyBall();  
   }
+  else if (digitalRead(PIN_BTN_ACTION) == LOW) {
+    toggleEspNowMode(); // Interaktives Einstellungs-Menü
+  }
 
-  WiFi.mode(WIFI_OFF);
+  // Setup ESP-NOW nur starten/scannen, wenn die Funktion aktiv ist!
+  if (espNowEnabled) {
+    setupESPNow();
+  }
 
   gpio_wakeup_enable((gpio_num_t)PIN_BTN_ACTION, GPIO_INTR_LOW_LEVEL);
   gpio_wakeup_enable((gpio_num_t)PIN_BTN_MODE, GPIO_INTR_LOW_LEVEL);
@@ -208,6 +241,7 @@ void loop() {
     lastDebounceTime2 = currentMillis + 250;
   }
 
+  // --- CANCEL BUTTON (MODE) ---
   if (modePressed && (currentMillis - lastDebounceTime2 > DEBOUNCE_DELAY) && !isDimmed) {
     lastActivityTime = currentMillis;
     if (!isRunning) {
@@ -216,11 +250,19 @@ void loop() {
     } else {
       isRunning = false;
       triggerVibration(VIB_CANCEL); 
+
+      Program p = programs[currentMenuIndex];
+      if (p.name != "Serve" && p.name != "Coin Toss") {
+        sendTimerCommand(false, 0);
+      }
+      
+      currentMenuIndex = 0; 
       updateMenuDisplay();
     }
     lastDebounceTime2 = currentMillis;
   }
 
+  // --- START BUTTON (ACTION) ---
   if (actionPressed && (currentMillis - lastDebounceTime1 > DEBOUNCE_DELAY) && !isDimmed) {
     lastActivityTime = currentMillis;
     if (!isRunning) {
@@ -232,6 +274,16 @@ void loop() {
         startTime = currentMillis;
         warningTriggered = false; 
         triggerVibration(VIB_START);    
+        
+        Program p = programs[currentMenuIndex];
+        if (p.name != "Serve" && p.name != "Coin Toss") {
+          sendTimerCommand(true, p.durationMs);
+        }
+      }
+    } else {
+      if (currentMenuIndex == 0) { 
+        startTime = currentMillis; 
+        triggerVibration(VIB_START); 
       }
     }
     lastDebounceTime1 = currentMillis;
@@ -243,6 +295,11 @@ void loop() {
 
     if (elapsed >= p.durationMs) {
       isRunning = false;
+
+      if (p.name != "Serve" && p.name != "Coin Toss") {
+        sendTimerCommand(false, 0);
+      }
+
       display.clearDisplay();
       drawHeader(p.name);
       
@@ -261,6 +318,8 @@ void loop() {
         digitalWrite(PIN_VIB_MOTOR, HIGH); delay(VIB_ALARM_PULSE); 
         digitalWrite(PIN_VIB_MOTOR, LOW);  if(i < VIB_ALARM_COUNT - 1) delay(VIB_ALARM_PAUSE); 
       }
+      
+      currentMenuIndex = 0; 
       updateMenuDisplay(); 
       lastActivityTime = millis(); 
     } else {
@@ -272,6 +331,114 @@ void loop() {
       updateTimerDisplay(remaining);
     }
   }
+}
+
+// ==========================================
+// --- NEU: INTERAKTIVES SETTINGS MENU ---
+// ==========================================
+void toggleEspNowMode() {
+  Preferences prefs;
+  prefs.begin("settings", false); 
+  
+  // Warten, bis der Action-Button vom Einschalten losgelassen wird
+  while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } 
+
+  bool inMenu = true;
+  
+  while (inMenu) {
+    display.clearDisplay();
+    drawHeader("SETTINGS");
+    
+    display.setTextSize(1);
+    String status1 = "Scoreboard Sync:";
+    int x1 = (SCREEN_WIDTH - (status1.length() * 6)) / 2;
+    display.setCursor(x1 < 0 ? 0 : x1, 23);
+    display.print(status1);
+
+    display.setTextSize(2);
+    String status2 = espNowEnabled ? "ON" : "OFF";
+    int x2 = (SCREEN_WIDTH - (status2.length() * 12)) / 2;
+    display.setCursor(x2 < 0 ? 0 : x2, 38);
+    display.print(status2);
+
+    display.setTextSize(1);
+    String helpTxt = "[MODE] = Save & Exit";
+    int x3 = (SCREEN_WIDTH - (helpTxt.length() * 6)) / 2;
+    display.setCursor(x3 < 0 ? 0 : x3, 55);
+    display.print(helpTxt);
+    
+    display.display();
+
+    // Toggle mit Action Button
+    if (digitalRead(PIN_BTN_ACTION) == LOW) {
+      espNowEnabled = !espNowEnabled; // Ändert den Status
+      prefs.putBool("espnow", espNowEnabled); // Speichert sofort
+      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(50); digitalWrite(PIN_VIB_MOTOR, LOW); // Kurzes Feedback
+      
+      while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } // Warten bis losgelassen
+    }
+
+    // Verlassen mit Mode Button
+    if (digitalRead(PIN_BTN_MODE) == LOW) {
+      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(200); digitalWrite(PIN_VIB_MOTOR, LOW); // Langes Feedback
+      while(digitalRead(PIN_BTN_MODE) == LOW) { delay(10); } // Warten bis losgelassen
+      inMenu = false; // Bricht die Schleife ab und fährt mit dem Startvorgang fort
+    }
+    
+    delay(50);
+  }
+  
+  prefs.end();
+  display.clearDisplay();
+  display.display();
+}
+
+// ==========================================
+// --- ESP-NOW FUNCTIONS ---
+// ==========================================
+void setupESPNow() {
+  WiFi.mode(WIFI_STA);
+  
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    if (WiFi.SSID(i) == "Scoreboard") { 
+      scoreboardChannel = WiFi.channel(i);
+      break;
+    }
+  }
+  WiFi.scanDelete();
+
+  WiFi.mode(WIFI_OFF); 
+}
+
+void sendTimerCommand(bool start, unsigned long duration) {
+  if (!espNowEnabled) return; 
+
+  WiFi.mode(WIFI_STA);
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(scoreboardChannel, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+
+  if (esp_now_init() == ESP_OK) {
+    esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+    peerInfo.channel = scoreboardChannel;
+    peerInfo.encrypt = false;
+    esp_now_add_peer(&peerInfo);
+
+    struct_message msg;
+    msg.start = start;
+    msg.duration = duration;
+    
+    for(int i = 0; i < 3; i++) {
+      esp_now_send(broadcastAddress, (uint8_t *) &msg, sizeof(msg));
+      delay(15); 
+    }
+    
+    esp_now_deinit();
+  }
+  
+  WiFi.mode(WIFI_OFF); 
 }
 
 // ==========================================
@@ -325,6 +492,8 @@ void runCoinToss() {
   
   digitalWrite(PIN_VIB_MOTOR, HIGH); delay(500); digitalWrite(PIN_VIB_MOTOR, LOW);
   delay(3000); 
+  
+  currentMenuIndex = 0; 
   updateMenuDisplay();
 }
 

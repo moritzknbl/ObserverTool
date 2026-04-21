@@ -4,6 +4,7 @@
 #include <Fonts/FreeSans18pt7b.h>
 #include <Fonts/FreeSans24pt7b.h>
 #include "esp_sleep.h" 
+#include "esp_pm.h"
 #include <WiFi.h>
 #include <esp_now.h>   
 #include <esp_wifi.h>  
@@ -131,10 +132,13 @@ void sendTimerCommand(bool start, unsigned long duration);
 // ==========================================
 
 void setup() {
+  setCpuFrequencyMhz(80);
+  
   pinMode(PIN_BTN_ACTION, INPUT_PULLUP);
   pinMode(PIN_BTN_MODE, INPUT_PULLUP);
   pinMode(PIN_VIB_MOTOR, OUTPUT);
   digitalWrite(PIN_VIB_MOTOR, LOW);
+  
 
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
@@ -143,12 +147,24 @@ void setup() {
   setDisplayBrightness(BRIGHTNESS_HIGH);
 
   display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(4, 1); 
+  display.println("OpenCirclz");
+  display.drawLine(0, 16, SCREEN_WIDTH, 16, SSD1306_WHITE);
+  display.setCursor(16, 25);
+  display.println("OBSERVER");
+  display.setCursor(40, 45);
+  display.println("TOOL");
+  display.setTextSize(1);
+  display.setCursor(0, 56);
+  display.print(FIRMWARE_VERSION);
   display.display();
 
-  // Gespeicherten Sync-Status laden
   Preferences prefsMain;
   prefsMain.begin("settings", true); 
   espNowEnabled = prefsMain.getBool("espnow", true); 
+  scoreboardChannel = prefsMain.getInt("lastChan", 1); 
   prefsMain.end();
 
   // --- BOOT MENU LOGIC ---
@@ -159,7 +175,7 @@ void setup() {
     runFlappyBall();  
   }
   else if (digitalRead(PIN_BTN_ACTION) == LOW) {
-    toggleEspNowMode(); // Interaktives Einstellungs-Menü
+    toggleEspNowMode(); 
   }
 
   if (espNowEnabled) {
@@ -169,24 +185,6 @@ void setup() {
   gpio_wakeup_enable((gpio_num_t)PIN_BTN_ACTION, GPIO_INTR_LOW_LEVEL);
   gpio_wakeup_enable((gpio_num_t)PIN_BTN_MODE, GPIO_INTR_LOW_LEVEL);
   esp_sleep_enable_gpio_wakeup();
-
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  
-  display.setCursor(4, 1); 
-  display.println("OpenCirclz");
-  display.drawLine(0, 16, SCREEN_WIDTH, 16, SSD1306_WHITE);
-
-  display.setCursor(16, 25);
-  display.println("OBSERVER");
-  display.setCursor(40, 45);
-  display.println("TOOL");
-  
-  display.setTextSize(1);
-  display.setCursor(0, 56);
-  display.print(FIRMWARE_VERSION);
-  display.display();
   
   delay(BOOT_DELAY_BEFORE_VIB); 
   digitalWrite(PIN_VIB_MOTOR, HIGH); delay(VIB_BOOT_PULSE);
@@ -333,7 +331,7 @@ void loop() {
 }
 
 // ==========================================
-// --- NEU: INTERAKTIVES SETTINGS MENU ---
+// --- INTERAKTIVES SETTINGS MENU ---
 // ==========================================
 void toggleEspNowMode() {
   Preferences prefs;
@@ -368,17 +366,17 @@ void toggleEspNowMode() {
     display.display();
 
     if (digitalRead(PIN_BTN_ACTION) == LOW) {
-      espNowEnabled = !espNowEnabled; // Ändert den Status
-      prefs.putBool("espnow", espNowEnabled); // Speichert sofort
-      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(50); digitalWrite(PIN_VIB_MOTOR, LOW); // Kurzes Feedback
+      espNowEnabled = !espNowEnabled;
+      prefs.putBool("espnow", espNowEnabled);
+      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(50); digitalWrite(PIN_VIB_MOTOR, LOW); 
       
-      while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } // Warten bis losgelassen
+      while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); }
     }
 
     if (digitalRead(PIN_BTN_MODE) == LOW) {
-      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(200); digitalWrite(PIN_VIB_MOTOR, LOW); // Langes Feedback
-      while(digitalRead(PIN_BTN_MODE) == LOW) { delay(10); } // Warten bis losgelassen
-      inMenu = false; // Bricht die Schleife ab und fährt mit dem Startvorgang fort
+      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(200); digitalWrite(PIN_VIB_MOTOR, LOW);
+      while(digitalRead(PIN_BTN_MODE) == LOW) { delay(10); }
+      inMenu = false;
     }
     
     delay(50);
@@ -395,16 +393,23 @@ void toggleEspNowMode() {
 void setupESPNow() {
   WiFi.mode(WIFI_STA);
   
-  int n = WiFi.scanNetworks();
+  bool found = false;
+  int n = WiFi.scanNetworks(false, false, false, 120); 
   for (int i = 0; i < n; i++) {
     if (WiFi.SSID(i) == "Scoreboard") { 
       scoreboardChannel = WiFi.channel(i);
+      found = true;
+      
+      Preferences prefs;
+      prefs.begin("settings", false);
+      prefs.putInt("lastChan", scoreboardChannel);
+      prefs.end();
       break;
     }
   }
   WiFi.scanDelete();
-
   WiFi.mode(WIFI_OFF); 
+  
 }
 
 void sendTimerCommand(bool start, unsigned long duration) {
@@ -426,10 +431,9 @@ void sendTimerCommand(bool start, unsigned long duration) {
     msg.start = start;
     msg.duration = duration;
     
-  
     for(int i = 0; i < 10; i++) {
       esp_now_send(broadcastAddress, (uint8_t *) &msg, sizeof(msg));
-      delay(40); 
+      delay(10); 
     }
     
     esp_now_deinit();

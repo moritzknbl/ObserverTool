@@ -1,14 +1,15 @@
 # OpenCirclz - ObserverTool
 
-A smart, pocket-sized timing and utility device for Roundnet observers, built on the ESP32 platform. It features timers for every situation with haptic feedback, a coin toss generator, and built-in OTA (Over-The-Air) update capabilities.
+A smart, pocket-sized timing and utility device for Roundnet observers, built on the ESP32 platform. It features timers for every situation with haptic feedback, a coin toss generator, seamless Scoreboard synchronization, and built-in OTA (Over-The-Air) update capabilities.
 
 ## ✨ Features
 * **Smart Timers:** Pre-configured programs (Serve, Timeout, Break, Medicals) with visual countdowns.
-* **Haptic Feedback:** Custom vibration profiles for warnings, alarms, and interactions for a look free interaction
-* **Power Management:** Auto-dimming and deep sleep mode for maximum battery life.
+* **Scoreboard Integration:** Wirelessly broadcasts active timers to the OpenCirclz Scoreboard Pro via ESP-NOW for live stream or crowd overlays.
+* **Haptic Feedback:** Custom vibration profiles for warnings, alarms, and interactions for a look-free interaction.
+* **Power Management:** Auto-dimming and sleep modes for maximum battery life.
 * **Coin Toss:** Built-in random heads/tails generator.
 * **OTA Updates:** Secret service mode to flash new firmware via Wi-Fi without a cable.
-* **Easter Egg:** Hidden "Flappy Bird" mini-game.
+* **Easter Egg:** Hidden "Flappy Dot" mini-game.
 
 ## 🛠️ Hardware Requirements
 * **Microcontroller:** ESP32-C3 Super Mini
@@ -24,14 +25,14 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 |-------------------|-----------|
 | I2C SCL (OLED)    | GPIO 6    |
 | I2C SDA (OLED)    | GPIO 7    |
-| START Button     | GPIO 3    |
+| START Button      | GPIO 3    |
 | MODE Button       | GPIO 4    |
-| Vibration Motor Module   | GPIO 10   |
+| Vibration Motor   | GPIO 10   |
 
 *(Note: Buttons are configured as `INPUT_PULLUP`, so connect them between the GPIO and GND).*
 
 ## 🧊 3D Printed Enclosure
-To complete your ObserverTool, a custom-designed 3D printable case is available. You can find all the necessary `.stl` files directly in the [encloure](enclosure) folder. 
+To complete your ObserverTool, a custom-designed 3D printable case is available. You can find all the necessary `.stl` files directly in the [enclosure](enclosure) folder. 
 
 **Assembly & Design:**
 * **Highly Maintenance-Friendly:** The entire enclosure is designed without the need for any glue. 
@@ -47,7 +48,7 @@ To compile this project in the Arduino IDE or PlatformIO, you need the following
 * `Adafruit GFX Library`
 * `Adafruit SSD1306`
 
-The ESP32 core libraries (`WiFi`, `WebServer`, `Update`, `DNSServer`, `Preferences`) are included by default in the ESP32 board package.
+The ESP32 core libraries (`WiFi`, `esp_now`, `esp_wifi`, `WebServer`, `Update`, `DNSServer`, `Preferences`) are included by default in the ESP32 board package.
 
 ## 📥 Installation & Flashing Guide (Arduino IDE)
 
@@ -95,6 +96,8 @@ If you already have a version of the ObserverTool running and just want to updat
 
 ### Secret Boot Modes
 Hold specific buttons **while powering on** the device to access special modes:
+* **Settings Menu:** Hold `START`
+  * Toggle Scoreboard ESP-NOW Sync `ON` or `OFF`. Press `MODE` to save and exit.
 * **OTA Service Mode:** Hold `MODE` + `START`
   * Connect to the Wi-Fi AP `ObserverTool`.
   * A captive portal will appear (or navigate to `http://192.168.4.1`).

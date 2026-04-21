@@ -12,8 +12,8 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 * **Easter Egg:** Hidden "Flappy Dot" mini-game.
 
 ## 🛠️ Hardware Requirements
-* **Microcontroller:** ESP32-C3 Super Mini
-* **Display:** 0.96" OLED I2C (128x64, SSD1306)
+* **Microcontroller:** ESP32-C3 Super Mini [HERE](https://de.aliexpress.com/item/1005008796274949.html)
+* **Display:** 0.96" OLED I2C (128x64, SSD1306) [HERE](https://de.aliexpress.com/item/1005007084725556.html)
 * **Inputs:** 2x Push Buttons (Start & Mode) (12*11mm opening size) [HERE](https://de.aliexpress.com/item/1005009402689922.html)
 * **Vibration:** QYF-740 Vibration Motor Module (Built-in driver, operates at 3.0-5.3VDC) [HERE](https://aliexpress.com/item/1005009127931477.html)
 * **Battery:** Small 502030 3.7V LiPo Battery [HERE](https://de.aliexpress.com/item/1005006584143607.html)

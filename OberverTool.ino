@@ -163,7 +163,7 @@ void setup() {
 
   Preferences prefsMain;
   prefsMain.begin("settings", true); 
-  espNowEnabled = prefsMain.getBool("espnow", true); 
+  espNowEnabled = prefsMain.getBool("espnow", false); 
   scoreboardChannel = prefsMain.getInt("lastChan", 1); 
   prefsMain.end();
 

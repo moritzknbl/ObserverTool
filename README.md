@@ -106,4 +106,4 @@ Hold specific buttons **while powering on** the device to access special modes:
   * Press `START` to jump. Press `MODE` to exit back to the main tool.
 
 ## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Creative Commons Attribution-NC-SA 4.0 - see the [LICENSE](LICENSE) file for details.

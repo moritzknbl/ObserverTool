@@ -107,3 +107,8 @@ Hold specific buttons **while powering on** the device to access special modes:
 
 ## 📄 License
 This project is licensed under the Creative Commons Attribution-NC-SA 4.0 - see the [LICENSE](LICENSE) file for details.
+
+**Personal Use Only:** You are free to build and use this project for yourself. 
+
+**Non-Commercial:** You are NOT allowed to sell this project, the hardware, or the code. 
+Commercial licenses are available upon request.

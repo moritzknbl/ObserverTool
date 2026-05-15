@@ -57,7 +57,7 @@ const unsigned long BOOT_DELAY_AFTER_VIB = 1500;
 
 // OTA Service Mode settings
 const char* AP_SSID = "ObserverTool";
-const char* FIRMWARE_VERSION = "v2.0"; 
+const char* FIRMWARE_VERSION = "v2.1"; 
 const byte DNS_PORT = 53;
 
 // Program definitions { "Name", Duration (ms), Warning (ms, 0 = off) }
@@ -99,11 +99,12 @@ unsigned long vibrateUntil = 0;
 bool isDimmed = false;
 
 // ==========================================
-// --- ESP-NOW VARIABLES ---
+// --- SYSTEM SETTINGS ---
 // ==========================================
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 int scoreboardChannel = 1; 
 bool espNowEnabled = true; 
+bool isButtonNC = true; // True = Normally Closed (NC), False = Normally Open (NO)
 
 typedef struct struct_message {
   bool start;
@@ -113,10 +114,11 @@ typedef struct struct_message {
 // ==========================================
 // --- FUNCTION DECLARATIONS ---
 // ==========================================
+bool isButtonPressed(int pin);
 void runServiceMode();
 void runFlappyBall();
 void runCoinToss();
-void toggleEspNowMode(); 
+void openSettingsMenu(); 
 void setDisplayBrightness(uint8_t contrast);
 void drawHeader(String title);
 void updateMenuDisplay();
@@ -128,18 +130,26 @@ void setupESPNow();
 void sendTimerCommand(bool start, unsigned long duration);
 
 // ==========================================
+// --- BUTTON LOGIC ABSTRACTION ---
+// ==========================================
+bool isButtonPressed(int pin) {
+  if (isButtonNC) {
+    return digitalRead(pin) == HIGH;
+  } else {
+    return digitalRead(pin) == LOW;
+  }
+}
+
+// ==========================================
 // --- SETUP ---
 // ==========================================
 
 void setup() {
-  setCpuFrequencyMhz(80);
-  
   pinMode(PIN_BTN_ACTION, INPUT_PULLUP);
   pinMode(PIN_BTN_MODE, INPUT_PULLUP);
   pinMode(PIN_VIB_MOTOR, OUTPUT);
   digitalWrite(PIN_VIB_MOTOR, LOW);
   
-
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
     for(;;);
@@ -165,25 +175,32 @@ void setup() {
   prefsMain.begin("settings", true); 
   espNowEnabled = prefsMain.getBool("espnow", false); 
   scoreboardChannel = prefsMain.getInt("lastChan", 1); 
+  isButtonNC = prefsMain.getBool("btnNC", true); 
   prefsMain.end();
 
   // --- BOOT MENU LOGIC ---
-  if (digitalRead(PIN_BTN_MODE) == LOW && digitalRead(PIN_BTN_ACTION) == LOW) {
+  if (isButtonPressed(PIN_BTN_MODE) && isButtonPressed(PIN_BTN_ACTION)) {
     runServiceMode(); 
   } 
-  else if (digitalRead(PIN_BTN_MODE) == LOW) {
+  else if (isButtonPressed(PIN_BTN_MODE)) {
     runFlappyBall();  
   }
-  else if (digitalRead(PIN_BTN_ACTION) == LOW) {
-    toggleEspNowMode(); 
+  else if (isButtonPressed(PIN_BTN_ACTION)) {
+    openSettingsMenu(); 
   }
 
   if (espNowEnabled) {
     setupESPNow();
   }
 
-  gpio_wakeup_enable((gpio_num_t)PIN_BTN_ACTION, GPIO_INTR_LOW_LEVEL);
-  gpio_wakeup_enable((gpio_num_t)PIN_BTN_MODE, GPIO_INTR_LOW_LEVEL);
+  // Wakeup interrupts based on button type
+  if (isButtonNC) {
+    gpio_wakeup_enable((gpio_num_t)PIN_BTN_ACTION, GPIO_INTR_HIGH_LEVEL);
+    gpio_wakeup_enable((gpio_num_t)PIN_BTN_MODE, GPIO_INTR_HIGH_LEVEL);
+  } else {
+    gpio_wakeup_enable((gpio_num_t)PIN_BTN_ACTION, GPIO_INTR_LOW_LEVEL);
+    gpio_wakeup_enable((gpio_num_t)PIN_BTN_MODE, GPIO_INTR_LOW_LEVEL);
+  }
   esp_sleep_enable_gpio_wakeup();
   
   delay(BOOT_DELAY_BEFORE_VIB); 
@@ -205,8 +222,8 @@ void loop() {
   unsigned long currentMillis = millis();
   handleVibration(currentMillis); 
 
-  bool actionPressed = (digitalRead(PIN_BTN_ACTION) == LOW);
-  bool modePressed = (digitalRead(PIN_BTN_MODE) == LOW);
+  bool actionPressed = isButtonPressed(PIN_BTN_ACTION);
+  bool modePressed = isButtonPressed(PIN_BTN_MODE);
 
   if (isRunning) {
     lastActivityTime = currentMillis; 
@@ -331,52 +348,72 @@ void loop() {
 }
 
 // ==========================================
-// --- INTERAKTIVES SETTINGS MENU ---
+// --- INTERACTIVE SETTINGS MENU ---
 // ==========================================
-void toggleEspNowMode() {
+void openSettingsMenu() {
   Preferences prefs;
   prefs.begin("settings", false); 
   
-  while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); } 
+  while(isButtonPressed(PIN_BTN_ACTION)) { delay(10); } 
 
   bool inMenu = true;
+  int menuPage = 0; // 0 = Sync, 1 = Button Type
   
   while (inMenu) {
     display.clearDisplay();
     drawHeader("SETTINGS");
     
     display.setTextSize(1);
-    String status1 = "Scoreboard Sync:";
-    int x1 = (SCREEN_WIDTH - (status1.length() * 6)) / 2;
-    display.setCursor(x1 < 0 ? 0 : x1, 23);
-    display.print(status1);
+    
+    if (menuPage == 0) {
+      String status1 = "Scoreboard Sync";
+      int x1 = (SCREEN_WIDTH - (status1.length() * 6)) / 2;
+      display.setCursor(x1 < 0 ? 0 : x1, 30);
+      display.print(status1);
 
-    display.setTextSize(2);
-    String status2 = espNowEnabled ? "ON" : "OFF";
-    int x2 = (SCREEN_WIDTH - (status2.length() * 12)) / 2;
-    display.setCursor(x2 < 0 ? 0 : x2, 38);
-    display.print(status2);
+      display.setTextSize(2);
+      String status2 = espNowEnabled ? "ON" : "OFF";
+      int x2 = (SCREEN_WIDTH - (status2.length() * 12)) / 2;
+      display.setCursor(x2 < 0 ? 0 : x2, 45);
+      display.print(status2);
+    } else {
+      String status1 = "Button Type";
+      int x1 = (SCREEN_WIDTH - (status1.length() * 6)) / 2;
+      display.setCursor(x1 < 0 ? 0 : x1, 30);
+      display.print(status1);
 
-    display.setTextSize(1);
-    String helpTxt = "[MODE] = Save & Exit";
-    int x3 = (SCREEN_WIDTH - (helpTxt.length() * 6)) / 2;
-    display.setCursor(x3 < 0 ? 0 : x3, 55);
-    display.print(helpTxt);
+      display.setTextSize(2);
+      String status2 = isButtonNC ? "NC" : "NO";
+      int x2 = (SCREEN_WIDTH - (status2.length() * 12)) / 2;
+      display.setCursor(x2 < 0 ? 0 : x2, 45);
+      display.print(status2);
+    }
     
     display.display();
 
-    if (digitalRead(PIN_BTN_ACTION) == LOW) {
-      espNowEnabled = !espNowEnabled;
-      prefs.putBool("espnow", espNowEnabled);
+    // Toggle Setting
+    if (isButtonPressed(PIN_BTN_ACTION)) {
+      if (menuPage == 0) {
+        espNowEnabled = !espNowEnabled;
+        prefs.putBool("espnow", espNowEnabled);
+      } else {
+        isButtonNC = !isButtonNC;
+        prefs.putBool("btnNC", isButtonNC);
+      }
       digitalWrite(PIN_VIB_MOTOR, HIGH); delay(50); digitalWrite(PIN_VIB_MOTOR, LOW); 
       
-      while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); }
+      while(isButtonPressed(PIN_BTN_ACTION)) { delay(10); }
     }
 
-    if (digitalRead(PIN_BTN_MODE) == LOW) {
-      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(200); digitalWrite(PIN_VIB_MOTOR, LOW);
-      while(digitalRead(PIN_BTN_MODE) == LOW) { delay(10); }
-      inMenu = false;
+    // Next Page / Exit
+    if (isButtonPressed(PIN_BTN_MODE)) {
+      digitalWrite(PIN_VIB_MOTOR, HIGH); delay(150); digitalWrite(PIN_VIB_MOTOR, LOW);
+      while(isButtonPressed(PIN_BTN_MODE)) { delay(10); }
+      
+      menuPage++;
+      if (menuPage > 1) {
+        inMenu = false; 
+      }
     }
     
     delay(50);
@@ -409,7 +446,6 @@ void setupESPNow() {
   }
   WiFi.scanDelete();
   WiFi.mode(WIFI_OFF); 
-  
 }
 
 void sendTimerCommand(bool start, unsigned long duration) {
@@ -506,7 +542,7 @@ void runFlappyBall() {
   prefs.begin("flappydot", false);
   int highscore = prefs.getInt("highscore", 0);
 
-  while(digitalRead(PIN_BTN_ACTION) == LOW || digitalRead(PIN_BTN_MODE) == LOW) { delay(10); }
+  while(isButtonPressed(PIN_BTN_ACTION) || isButtonPressed(PIN_BTN_MODE)) { delay(10); }
 
   display.clearDisplay();
   drawHeader("Flappy Dot");
@@ -526,15 +562,15 @@ void runFlappyBall() {
   display.display();
 
   while(true) {
-    if(digitalRead(PIN_BTN_MODE) == LOW) { 
+    if(isButtonPressed(PIN_BTN_MODE)) { 
       prefs.end(); 
       return; 
     }
-    if(digitalRead(PIN_BTN_ACTION) == LOW) break; 
+    if(isButtonPressed(PIN_BTN_ACTION)) break; 
     delay(10);
   }
   
-  while(digitalRead(PIN_BTN_ACTION) == LOW) { delay(10); }
+  while(isButtonPressed(PIN_BTN_ACTION)) { delay(10); }
 
   float birdY = 32, birdVy = 0;
   int obsX = 128, obsW = 12, obsGap = 26, obsY = 32, score = 0;
@@ -546,7 +582,7 @@ void runFlappyBall() {
       lastFrame = millis();
       
       if(!gameOver) {
-        bool btnState = (digitalRead(PIN_BTN_ACTION) == LOW);
+        bool btnState = isButtonPressed(PIN_BTN_ACTION);
         if(btnState && !lastBtnState) {
           birdVy = -4.0; 
           digitalWrite(PIN_VIB_MOTOR, HIGH); delay(5); digitalWrite(PIN_VIB_MOTOR, LOW);
@@ -594,12 +630,12 @@ void runFlappyBall() {
         
         display.display();
         
-        if(digitalRead(PIN_BTN_ACTION) == LOW) { 
+        if(isButtonPressed(PIN_BTN_ACTION)) { 
           birdY = 32; birdVy = 0; obsX = 128; score = 0; gameOver = false;
-          while(digitalRead(PIN_BTN_ACTION) == LOW) delay(10); 
+          while(isButtonPressed(PIN_BTN_ACTION)) delay(10); 
         }
-        if(digitalRead(PIN_BTN_MODE) == LOW) { 
-          while(digitalRead(PIN_BTN_MODE) == LOW) delay(10);
+        if(isButtonPressed(PIN_BTN_MODE)) { 
+          while(isButtonPressed(PIN_BTN_MODE)) delay(10);
           prefs.end();
           return; 
         }
@@ -626,22 +662,54 @@ const char web_page_html[] PROGMEM = R"rawliteral(
 <head>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
   <style>
-    body{font-family:sans-serif;background:#222;color:#fff;text-align:center;padding:50px 20px;}
-    input[type=file]{margin-bottom:20px;padding:10px;background:#333;border-radius:5px;}
-    input[type=submit]{background:#f3ca20;color:#000;border:none;padding:15px 30px;font-size:18px;border-radius:5px;font-weight:bold;cursor:pointer;}
-    .version{font-size:14px; color:#aaa; margin-bottom:30px;}
+    body{font-family:sans-serif;background:#222;color:#fff;text-align:center;padding:20px;}
+    .card{background:#333;border-radius:8px;padding:20px;margin-bottom:20px;box-shadow:0 4px 8px rgba(0,0,0,0.2);}
+    input[type=file]{margin-bottom:15px;padding:10px;background:#444;border-radius:5px;width:90%; color:#fff;}
+    button, input[type=submit]{background:#f3ca20;color:#000;border:none;padding:12px 20px;font-size:16px;border-radius:5px;font-weight:bold;cursor:pointer;width:100%;max-width:300px;margin-top:10px;}
+    .version{font-size:14px;color:#aaa;margin-bottom:20px;}
+    select{padding:10px;font-size:16px;background:#444;color:#fff;border:none;border-radius:5px;width:100%;max-width:300px;margin-top:5px;}
+    input[type=checkbox]{transform:scale(1.5);margin-right:10px;}
+    label{font-size:16px;}
   </style>
 </head>
 <body>
-  <h2>ObserverTool Update</h2>
+  <h2>ObserverTool Hub</h2>
   <div class='version'>Current Version: <b>%VERSION%</b></div>
-  <p>Choose new Firmware (.bin):</p>
-  <form method='POST' action='/update' enctype='multipart/form-data'>
-    <input type='file' name='update' accept='.bin'><br><br>
-    <input type='submit' value='Flash Update'>
-  </form>
-  <br><br>
-  <h3>&copy; OpenCirclz - Moritz Knaebel</h3>
+
+  <div class='card'>
+    <h3>Device Settings</h3>
+    <form method='POST' action='/savesettings'>
+      <div style='text-align:left;max-width:300px;margin:0 auto;'>
+        <p>
+          <label><input type='checkbox' name='espnow' value='1' %ESPNOW_CHECKED%> Scoreboard Sync</label>
+        </p>
+        <p>
+          <label>Button Type:</label><br>
+          <select name='btnType'>
+            <option value='NC' %BTN_NC_SEL%>Normally Closed (NC)</option>
+            <option value='NO' %BTN_NO_SEL%>Normally Open (NO)</option>
+          </select>
+        </p>
+      </div>
+      <button type='submit'>Save Settings</button>
+    </form>
+  </div>
+
+  <div class='card'>
+    <h3>Firmware Update</h3>
+    <form method='POST' action='/update' enctype='multipart/form-data'>
+      <input type='file' name='update' accept='.bin'><br>
+      <input type='submit' value='Flash Update'>
+    </form>
+  </div>
+
+  <div class='card'>
+    <form method='POST' action='/restart'>
+      <button type='submit' style='background:#d9534f;color:#fff;'>Restart Device</button>
+    </form>
+  </div>
+  
+  <p style='color:#777;font-size:12px;'>&copy; OpenCirclz</p>
 </body>
 </html>
 )rawliteral";
@@ -649,6 +717,9 @@ const char web_page_html[] PROGMEM = R"rawliteral(
 String getWebPage() {
   String html = String(web_page_html);
   html.replace("%VERSION%", FIRMWARE_VERSION); 
+  html.replace("%ESPNOW_CHECKED%", espNowEnabled ? "checked" : "");
+  html.replace("%BTN_NC_SEL%", isButtonNC ? "selected" : "");
+  html.replace("%BTN_NO_SEL%", !isButtonNC ? "selected" : "");
   return html;
 }
 
@@ -661,6 +732,28 @@ void runServiceMode() {
   server.on("/", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
     server.send(200, "text/html", getWebPage());
+  });
+
+  server.on("/savesettings", HTTP_POST, []() {
+    espNowEnabled = server.hasArg("espnow"); 
+    if (server.hasArg("btnType")) {
+      isButtonNC = (server.arg("btnType") == "NC");
+    }
+
+    Preferences prefs;
+    prefs.begin("settings", false);
+    prefs.putBool("espnow", espNowEnabled);
+    prefs.putBool("btnNC", isButtonNC);
+    prefs.end();
+
+    server.sendHeader("Location", "/", true);
+    server.send(303, "text/plain", "Settings saved!");
+  });
+
+  server.on("/restart", HTTP_POST, []() {
+    server.send(200, "text/plain", "Restarting device...");
+    delay(1000);
+    ESP.restart();
   });
 
   server.on("/update", HTTP_POST, []() {

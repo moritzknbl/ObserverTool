@@ -4,17 +4,18 @@ A smart, pocket-sized timing and utility device for Roundnet observers, built on
 
 ## ✨ Features
 * **Smart Timers:** Pre-configured programs (Serve, Timeout, Break, Medicals) with visual countdowns.
-* **Scoreboard Integration:** Wirelessly broadcasts active timers to the OpenCirclz Scoreboard Pro via ESP-NOW for live stream or crowd overlays.
+* **Scoreboard Integration:** Wirelessly broadcasts active timers to the OpenCirclz Scoreboard via ESP-NOW for live stream or crowd overlays.
 * **Haptic Feedback:** Custom vibration profiles for warnings, alarms, and interactions for a look-free interaction.
 * **Power Management:** Auto-dimming and sleep modes for maximum battery life.
 * **Coin Toss:** Built-in random heads/tails generator.
-* **OTA Updates:** Secret service mode to flash new firmware via Wi-Fi without a cable.
+* **OTA & Web Hub:** Secret service mode to flash new firmware via Wi-Fi without a cable, and a Web Hub to configure hardware settings directly from your smartphone.
 * **Easter Egg:** Hidden "Flappy Dot" mini-game.
 
 ## 🛠️ Hardware Requirements
 * **Microcontroller:** ESP32-C3 Super Mini [HERE](https://de.aliexpress.com/item/1005008796274949.html)
 * **Display:** 0.96" OLED I2C (128x64, SSD1306) [HERE](https://de.aliexpress.com/item/1005007084725556.html)
 * **Inputs:** 2x Push Buttons (Start & Mode) (12*11mm opening size) [HERE](https://de.aliexpress.com/item/1005009402689922.html)
+  *(Note: The software defaults to Normally Closed (NC) buttons, but Normally Open (NO) is fully supported and easily configurable via the Web Hub or local Settings Menu).*
 * **Vibration:** QYF-740 Vibration Motor Module (Built-in driver, operates at 3.0-5.3VDC) [HERE](https://aliexpress.com/item/1005009127931477.html)
 * **Battery:** Small 502030 3.7V LiPo Battery [HERE](https://de.aliexpress.com/item/1005006584143607.html)
 * **Power Switch**: Simple ON/OFF Power Switch (19*13mm opening size) [HERE](https://aliexpress.com/item/1005008276122557.html)
@@ -67,7 +68,7 @@ Go to **Sketch > Include Library > Manage Libraries** and search for the followi
 
 ### 3. Configure Board Settings (⚠️ CRITICAL)
 Connect your ESP32 to your computer via USB. Go to the **Tools** menu and configure the following settings:
-* **Board:** Select your specific ESP32 board (e.g., `ESP32 Dev Module`, `Adafruit ESP32 Feather`, etc.).
+* **Board:** Select your specific ESP32 board (e.g., `ESP32 Dev Module`, `ESP32C3 Dev Module`, etc.).
 * **Partition Scheme:** Select **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)**. 
   *(Note: This step is absolutely mandatory! If you skip this, the OTA-Update feature will not have enough memory to function and the board will crash).*
 * **Port:** Select the COM port your ESP32 is connected to (e.g., `COM3` on Windows or `/dev/cu.usbserial-...` on Mac).
@@ -97,11 +98,12 @@ If you already have a version of the ObserverTool running and just want to updat
 ### Secret Boot Modes
 Hold specific buttons **while powering on** the device to access special modes:
 * **Settings Menu:** Hold `START`
-  * Toggle Scoreboard ESP-NOW Sync `ON` or `OFF`. Press `MODE` to save and exit.
-* **OTA Service Mode:** Hold `MODE` + `START`
+  * Toggle **Scoreboard Sync** (ON/OFF) and **Button Type** (NC/NO) directly on the device.
+* **OTA & Web Hub:** Hold `MODE` + `START`
   * Connect to the Wi-Fi AP `ObserverTool`.
   * A captive portal will appear (or navigate to `http://192.168.4.1`).
-  * Upload your new `.bin` firmware file.
+  * **Device Settings:** Configure your Button Type (NC/NO) and ESP-NOW Scoreboard Sync wirelessly via the browser.
+  * **Update Firmware:** Upload your new `.bin` firmware file here.
 * **Flappy Dot Game:** Hold `MODE`
   * Press `START` to jump. Press `MODE` to exit back to the main tool.
 
